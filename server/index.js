@@ -2,14 +2,20 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const port = 3042;
+const {
+  verify,
+  getPublicKey,
+  recoverPublicKey,
+} = require("ethereum-cryptography/secp256k1");
+const { bytesToHex } = require("ethereum-cryptography/utils");
 
 app.use(cors());
 app.use(express.json());
 
 const balances = {
-  "0x1": 100,
-  "0x2": 50,
-  "0x3": 75,
+  "0x2345abb3c1fd70045aba": 100,
+  "0x5b2802576ed7cf39cde4": 50,
+  "0x2ecf5de5be8882dc6833": 75,
 };
 
 app.get("/balance/:address", (req, res) => {
@@ -19,7 +25,22 @@ app.get("/balance/:address", (req, res) => {
 });
 
 app.post("/send", (req, res) => {
-  const { sender, recipient, amount } = req.body;
+  const { transactionSignature, recipient, amount } = req.body;
+
+  const messageHash = new Uint8Array(
+    Object.values(transactionSignature.messageHash)
+  );
+  const signature = new Uint8Array(
+    Object.values(transactionSignature.signature)
+  );
+
+  const publicKey = recoverPublicKey(
+    bytesToHex(messageHash),
+    signature,
+    transactionSignature.recoveredBit
+  );
+
+  const sender = `0x${bytesToHex(publicKey).slice(-20)}`;
 
   setInitialBalance(sender);
   setInitialBalance(recipient);
